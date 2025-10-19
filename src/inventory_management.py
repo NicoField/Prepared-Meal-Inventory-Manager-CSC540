@@ -1,6 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
 import sys
+from pathlib import Path
 
 roles = {
     "Manufacturer": [
@@ -99,7 +100,8 @@ def main():
             cursor = connection.cursor()
 
             # Example: Initialize schema
-            with open(r"init.sql", "r") as f:
+            sql_path = Path(__file__).resolve().parent / "../sql/init.sql"
+            with open(sql_path, "r") as f:
                 sql_commands = f.read().split(';')
 
             for command in sql_commands:
