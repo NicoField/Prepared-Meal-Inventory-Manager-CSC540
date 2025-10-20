@@ -9,12 +9,7 @@ from sshtunnel import SSHTunnelForwarder
 base_dir = os.path.dirname(os.path.dirname(__file__))
 config_path = os.path.join(base_dir, "config", "config.json")
 with open(config_path, "r") as f:
-    cfg = json.load(f)
-ssh_host = cfg["ssh_host"]
-ssh_user = cfg["ssh_user"]
-ssh_pass = cfg["ssh_password"]
-mysql_host = cfg["mysql_host"]
-mysql_pass = cfg["mysql_password"]
+    config = json.load(f)
 
 sql_folder = os.path.join(os.path.dirname(__file__), "..", "sql")
 init_file = os.path.join(sql_folder, "init.sql")
@@ -100,17 +95,17 @@ def view_queries(cursor):
 
 def main():
     with SSHTunnelForwarder(
-        (ssh_host, 22),
-        ssh_username=ssh_user,
-        ssh_password=ssh_pass,
-        remote_bind_address=(mysql_host, 3306)
+        (config["ssh_host"], 22),
+        ssh_username=config["ssh_user"],
+        ssh_password=config["ssh_password"],
+        remote_bind_address=(config["mysql_host"], 3306)
     ) as tunnel:
         connection = pymysql.connect(
             host="127.0.0.1",
             port=tunnel.local_bind_port,
-            user=ssh_user,
-            password=mysql_pass,
-            database=ssh_user,
+            user=config["ssh_user"],
+            password=config["mysql_password"],
+            database=config["ssh_user"],
             autocommit=True
         )
         
