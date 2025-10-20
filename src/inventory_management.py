@@ -1,7 +1,24 @@
-import mysql.connector
-from mysql.connector import Error
 import sys
+import os
+import pymysql
+import json
+
 from pathlib import Path
+from sshtunnel import SSHTunnelForwarder
+
+base_dir = os.path.dirname(os.path.dirname(__file__))
+config_path = os.path.join(base_dir, "config", "config.json")
+with open(config_path, "r") as f:
+    cfg = json.load(f)
+ssh_host = cfg["ssh_host"]
+ssh_user = cfg["ssh_user"]
+ssh_pass = cfg["ssh_password"]
+mysql_host = cfg["mysql_host"]
+mysql_pass = cfg["mysql_password"]
+
+sql_folder = os.path.join(os.path.dirname(__file__), "..", "sql")
+init_file = os.path.join(sql_folder, "init.sql")
+data_file = os.path.join(sql_folder, "data.sql")
 
 roles = {
     "Manufacturer": [
@@ -25,19 +42,12 @@ roles = {
     ]
 }
 
-# Database configuration
-config = {
-        'host': 'localhost',
-        'user': 'root',
-        'database': 'dbms'
-    }
-
 def show_menu(options):
     for idx, option in enumerate(options, 1):
         print(f"[{idx}] {option}")
     print("[0] Back/Exit")
 
-def manufacturer_actions():
+def manufacturer_actions(cursor):
     while True:
         print("\n[Manufacturer Actions]")
         show_menu(roles["Manufacturer"])
@@ -50,7 +60,7 @@ def manufacturer_actions():
         else:
             print("Invalid choice. Try again.")
 
-def supplier_actions():
+def supplier_actions(cursor):
     while True:
         print("\n[Supplier Actions]")
         show_menu(roles["Supplier"])
@@ -63,7 +73,7 @@ def supplier_actions():
         else:
             print("Invalid choice. Try again.")
 
-def viewer_actions():
+def viewer_actions(cursor):
     while True:
         print("\n[Viewer Actions]")
         show_menu(roles["General (Viewer)"])
@@ -76,7 +86,7 @@ def viewer_actions():
         else:
             print("Invalid choice. Try again.")
 
-def view_queries():
+def view_queries(cursor):
     while True:
         print("\n[View Queries]")
         show_menu(roles["View Queries"])
@@ -89,51 +99,52 @@ def view_queries():
             print("Invalid choice. Try again.")
 
 def main():
-    try:
-        # Connect to the database
-        connection = mysql.connector.connect(**config)
+    with SSHTunnelForwarder(
+        (ssh_host, 22),
+        ssh_username=ssh_user,
+        ssh_password=ssh_pass,
+        remote_bind_address=(mysql_host, 3306)
+    ) as tunnel:
+        connection = pymysql.connect(
+            host="127.0.0.1",
+            port=tunnel.local_bind_port,
+            user=ssh_user,
+            password=mysql_pass,
+            database=ssh_user,
+            autocommit=True
+        )
+        
+        cursor = connection.cursor()
+        print(f"Executing init.sql...")
+        with open(init_file, "r") as f:
+            sql_script = f.read()
 
-        if connection.is_connected():
-            print("Connected to MySQL database")
+        # Split by semicolon for multiple statements
+        for statement in sql_script.split(";"):
+            stmt = statement.strip()
+            if stmt:
+                cursor.execute(stmt + ";")
 
-            # Create a cursor to execute queries
-            cursor = connection.cursor()
+        print("✅ init.sql executed successfully.")
 
-            # Example: Initialize schema
-            sql_path = Path(__file__).resolve().parent / "../sql/init.sql"
-            with open(sql_path, "r") as f:
-                sql_commands = f.read().split(';')
-
-            for command in sql_commands:
-                if command.strip():
-                    cursor.execute(command)
-            print("Tables created successfully")
-
-            while True:
-                print("\nSelect role: [1] Manufacturer  [2] Supplier  [3] General (Viewer) [4] View Queries  [0] Exit")
-                role_choice = input("Enter choice: ").strip()
-                if role_choice == "0":
-                    print("Exiting...")
-                    sys.exit()
-                elif role_choice == "1":
-                    manufacturer_actions()
-                elif role_choice == "2":
-                    supplier_actions()
-                elif role_choice == "3":
-                    viewer_actions()
-                elif role_choice == "4":
-                    view_queries()
-                else:
-                    print("Invalid choice. Try again.")
-
-    except Error as e:
-        print("Error while connecting to MySQL", e)
-
-    finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
-            print("MySQL connection closed")
+        while True:
+            print("\nSelect role: [1] Manufacturer  [2] Supplier  [3] General (Viewer) [4] View Queries  [0] Exit")
+            role_choice = input("Enter choice: ").strip()
+            if role_choice == "0":
+                print("Exiting...")
+                cursor.close()
+                connection.close()
+                sys.exit()
+            elif role_choice == "1":
+                manufacturer_actions(cursor)
+            elif role_choice == "2":
+                supplier_actions(cursor)
+            elif role_choice == "3":
+                viewer_actions(cursor)
+            elif role_choice == "4":
+                view_queries(cursor)
+            else:
+                print("Invalid choice. Try again.")
 
 if __name__ == "__main__":
     main()

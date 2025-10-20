@@ -1,0 +1,7 @@
+{
+    "ssh_host": "remote.eos.ncsu.edu",
+    "ssh_user": "<Unity ID>",
+    "ssh_password": "<Unity Password>",
+    "mysql_host": "classdb2.csc.ncsu.edu",
+    "mysql_password": "<Student ID>"
+}
