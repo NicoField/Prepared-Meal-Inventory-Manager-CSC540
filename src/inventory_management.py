@@ -13,6 +13,7 @@ with open(config_path, "r") as f:
 
 sql_folder = os.path.join(os.path.dirname(__file__), "..", "sql")
 init_file = os.path.join(sql_folder, "init.sql")
+trigger_file = os.path.join(sql_folder, "triggers.sql")
 data_file = os.path.join(sql_folder, "data.sql")
 
 roles = {
@@ -121,6 +122,46 @@ def main():
                 cursor.execute(stmt + ";")
 
         print("✅ init.sql executed successfully.")
+        
+        print(f"Executing triggers.sql...")
+        with open(trigger_file) as f:
+            sql_text = f.read()
+
+        # Remove BOM and extra whitespace
+        sql_text = sql_text.strip()
+
+        # Split on "CREATE" to isolate each statement
+        parts = sql_text.split("CREATE")
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+
+            # Add the "CREATE" keyword back to the part
+            stmt = "CREATE " + part
+
+            try:
+                cursor.execute(stmt)
+            except pymysql.MySQLError as e:
+                print("Error executing statement:")
+                print(stmt)
+                print(e)
+                break
+
+        print("✅ triggers.sql executed successfully.")
+
+        print(f"Executing data.sql...")
+
+        with open(data_file, "r") as f:
+            sql_script = f.read()
+
+        # Split by semicolon for multiple statements
+        for statement in sql_script.split(";"):
+            stmt = statement.strip()
+            if stmt:
+                cursor.execute(stmt + ";")
+
+        print("✅ data.sql executed successfully.")
 
         while True:
             print("\nSelect role: [1] Manufacturer  [2] Supplier  [3] General (Viewer) [4] View Queries  [0] Exit")
