@@ -3,6 +3,11 @@ import os
 import pymysql
 import json
 
+import manufacturer as m
+import supplier as s
+import viewer as v
+import queries as q
+
 from pathlib import Path
 from sshtunnel import SSHTunnelForwarder
 
@@ -44,6 +49,18 @@ def show_menu(options):
     print("[0] Back/Exit")
 
 def manufacturer_actions(cursor):
+    mid = input("Enter user id: ").strip()
+
+    cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (mid,))
+
+    result = cursor.fetchone()
+
+    if result:
+        print(f"Welcome {result[0]}")
+    else:
+        print("Invalid user")
+        return
+    
     while True:
         print("\n[Manufacturer Actions]")
         show_menu(roles["Manufacturer"])
@@ -51,12 +68,35 @@ def manufacturer_actions(cursor):
         if choice == "0":
             break
         elif choice in map(str, range(1, len(roles["Manufacturer"])+1)):
-            action = roles["Manufacturer"][int(choice)-1]
-            print(f"\nExecuting '{action}'... (placeholder)")
+            match choice:
+                case "1":
+                    m.define_update_product(cursor, mid)
+                case "2":
+                    m.define_update_recipe(cursor, mid)
+                case "3":
+                    m.record_ingredient_receipt(cursor, mid)
+                case "4":
+                    m.create_product_batch(cursor, mid)
+                case "5":
+                    m.view_report(cursor, mid)
+                case "6":
+                    m.recall_traceability(cursor, mid)
         else:
             print("Invalid choice. Try again.")
 
 def supplier_actions(cursor):
+    sid = input("Enter user id: ").strip()
+
+    cursor.execute("SELECT S_Name FROM Supplier WHERE S_ID = %s", (sid,))
+
+    result = cursor.fetchone()
+
+    if result:
+        print(f"Welcome {result[0]}")
+    else:
+        print("Invalid user")
+        return
+    
     while True:
         print("\n[Supplier Actions]")
         show_menu(roles["Supplier"])
@@ -64,12 +104,29 @@ def supplier_actions(cursor):
         if choice == "0":
             break
         elif choice in map(str, range(1, len(roles["Supplier"])+1)):
-            action = roles["Supplier"][int(choice)-1]
-            print(f"\nExecuting '{action}'... (placeholder)")
+            match choice:
+                case "1":
+                    s.declare_ingredient_supplied(cursor, sid)
+                case "2":
+                    s.maintain_formulations(cursor, sid)
+                case "3":
+                    s.create_ingredient_batch(cursor, sid)
         else:
             print("Invalid choice. Try again.")
 
 def viewer_actions(cursor):
+    vid = input("Enter user id: ").strip()
+
+    cursor.execute("SELECT V_Name FROM Viewer WHERE V_ID = %s", (vid,))
+
+    result = cursor.fetchone()
+
+    if result:
+        print(f"Welcome {result[0]}")
+    else:
+        print("Invalid user")
+        return
+    
     while True:
         print("\n[Viewer Actions]")
         show_menu(roles["General (Viewer)"])
@@ -77,8 +134,9 @@ def viewer_actions(cursor):
         if choice == "0":
             break
         elif choice in map(str, range(1, len(roles["General (Viewer)"])+1)):
-            action = roles["General (Viewer)"][int(choice)-1]
-            print(f"\nDisplaying '{action}'... (placeholder)")
+            match choice:
+                case "1":
+                    v.view_prodcut_ingredient_list(cursor)
         else:
             print("Invalid choice. Try again.")
 
@@ -90,7 +148,7 @@ def view_queries(cursor):
         if choice == "0":
             break
         elif choice == "1":
-            print("\nShowing queries... (placeholder)")
+            q.view_queries(cursor)
         else:
             print("Invalid choice. Try again.")
 
