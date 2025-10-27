@@ -2,6 +2,7 @@ import sys
 import os
 import pymysql
 import json
+import re
 
 import manufacturer as m
 import supplier as s
@@ -53,7 +54,7 @@ def show_menu(options):
         print(f"[{idx}] {option}")
     print("[0] Back/Exit")
 
-def manufacturer_actions(cursor):
+def manufacturer_actions(cursor, connection):
     mid = input("Enter user id: ").strip()
 
     cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (mid,))
@@ -82,6 +83,7 @@ def manufacturer_actions(cursor):
                     m.record_ingredient_receipt(cursor, mid)
                 case "4":
                     m.create_product_batch(cursor, mid)
+                    connection.commit()
                 case "5":
                     m.view_report(cursor, mid)
                 case "6":
@@ -190,40 +192,33 @@ def main():
         with open(init_file, "r") as f:
             sql_script = f.read()
 
-        # Split by semicolon for multiple statements
-        for statement in sql_script.split(";"):
-            stmt = statement.strip()
-            if stmt:
-                cursor.execute(stmt + ";")
+        # Split on "CREATE" or "DROP" to isolate each statement
+        parts = re.split(r'\b(CREATE|DROP)\b', sql_script, flags=re.IGNORECASE)
 
-        print("✅ init.sql executed successfully.")
-        
-        print(f"Executing triggers.sql...")
-        with open(trigger_file) as f:
-            sql_text = f.read()
+        # Combine keyword + statement
+        stmts = []
+        i = 1
+        while i < len(parts):
+            keyword = parts[i].upper()
+            statement = parts[i + 1].strip()
+            if statement:
+                stmts.append(f"{keyword} {statement}")
+            i += 2
 
-        # Remove BOM and extra whitespace
-        sql_text = sql_text.strip()
-
-        # Split on "CREATE" to isolate each statement
-        parts = sql_text.split("CREATE")
-        for part in parts:
+        for part in stmts:
             part = part.strip()
             if not part:
                 continue
 
-            # Add the "CREATE" keyword back to the part
-            stmt = "CREATE " + part
-
             try:
-                cursor.execute(stmt)
+                cursor.execute(part)
             except pymysql.MySQLError as e:
                 print("Error executing statement:")
-                print(stmt)
+                print(part)
                 print(e)
                 break
 
-        print("✅ triggers.sql executed successfully.")
+        print("✅ init.sql executed successfully.")
 
         print(f"Executing data.sql...")
 
@@ -247,7 +242,7 @@ def main():
                 connection.close()
                 sys.exit()
             elif role_choice == "1":
-                manufacturer_actions(cursor)
+                manufacturer_actions(cursor, connection)
             elif role_choice == "2":
                 supplier_actions(cursor)
             elif role_choice == "3":
@@ -256,6 +251,7 @@ def main():
                 view_queries(cursor)
             else:
                 print("Invalid choice. Try again.")
+            connection.close()
 
 if __name__ == "__main__":
     main()

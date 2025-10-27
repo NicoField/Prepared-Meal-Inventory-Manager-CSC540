@@ -33,6 +33,11 @@ VALUES
 (201, 'Seasoning Blend', "Compound"),
 (301, 'Super Seasoning', "Compound");
 
+INSERT INTO DoNotCombine (I_ID1, I_ID2)
+VALUES
+(201, 104),
+(106, 104);
+
 INSERT INTO Formulation (F_ID, CI_ID, S_ID, Version_No, Eff_Start_Date, Eff_End_Date, Unit_Price, Pack_Size)
 VALUES
 (1, 201, 20, 1, "2025-01-01", "2025-06-30", 20.0, 8.0);
@@ -69,6 +74,14 @@ VALUES
 (201, "20", "B0001", 100, 2.5, "2026-11-30"),
 (201, "20", "B0002", 20, 2.5, "2026-12-30");
 
+INSERT INTO Inventory (Ingredient_Lot_Number, M_ID, Quantity, Expiration_Date)
+VALUES
+("106-20-B0006", "MFG001", 600, "2026-11-15"),
+("201-20-B0002", "MFG001", 20, "2026-10-30"),
+("101-20-B0002", "MFG002", 150, "2026-11-15"),
+("108-20-B0003", "MFG002", 2100, "2026-10-30"),
+("102-20-B0001", "MFG002", 600, "2026-10-30");
+
 INSERT INTO ProductBatch (P_ID, M_ID, Batch_ID, R_ID, Quantity, Production_Date, Expiration_Date)
 VALUES
 (100, "MFG001", "B0901", 1000, 100, "2025-09-26", "2025-11-15"),
@@ -81,8 +94,3 @@ VALUES
 ("101-MFG002-B0101", "101-20-B0002", 150),
 ("101-MFG002-B0101", "108-20-B0003", 2100),
 ("101-MFG002-B0101", "102-20-B0001", 600);
-
-INSERT INTO DoNotCombine (I_ID1, I_ID2)
-VALUES
-(201, 104),
-(106, 104);
