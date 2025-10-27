@@ -36,10 +36,15 @@ roles = {
         "Create Ingredient Batch (for supplied ingredients)"
     ],
     "General (Viewer)": [
-        "Product Ingredient List (with nested materials, ordered by quantity)"
+        "Product Ingredient List (with nested materials, ordered by quantity)",
+        "Compare Products for Incompatibilities"
     ],
     "View Queries": [
-        "View saved queries or reports"
+        "Last Batch Ingredients for P_ID 100",
+        "Supplier Spending for Manufacturer MFG002",
+        "Product Unit Cost for Lot Number 100-MFG001-B0901",
+        "Conflicting Ingredients for Product Lot 100-MFG001-B0901",
+        "Manufacturers Not Supplied by Supplier 21"
     ]
 }
 
@@ -136,7 +141,9 @@ def viewer_actions(cursor):
         elif choice in map(str, range(1, len(roles["General (Viewer)"])+1)):
             match choice:
                 case "1":
-                    v.view_prodcut_ingredient_list(cursor)
+                    v.view_product_ingredient_list(cursor)
+                case "2":
+                    v.compare_products(cursor)
         else:
             print("Invalid choice. Try again.")
 
@@ -144,11 +151,21 @@ def view_queries(cursor):
     while True:
         print("\n[View Queries]")
         show_menu(roles["View Queries"])
-        choice = input("Select an option: ").strip()
+        choice = input("Select an action: ").strip()
         if choice == "0":
             break
-        elif choice == "1":
-            q.view_queries(cursor)
+        elif choice in map(str, range(1, len(roles["View Queries"])+1)):
+            match choice:
+                case "1":
+                    q.last_batch_ingredients(cursor)
+                case "2":
+                    q.manufacturer_supplier_spending(cursor)
+                case "3":
+                    q.product_unit_cost(cursor)
+                case "4":
+                    q.conflicting_ingredients_for_batch(cursor)
+                case "5":
+                    q.manufacturers_not_supplied_by(cursor)
         else:
             print("Invalid choice. Try again.")
 
