@@ -89,7 +89,7 @@ def manufacturer_supplier_spending(cursor):
 
 def last_batch_ingredients(cursor):
     cursor.execute("""
-        SELECT i.I_Name, ib.Ingredient_Lot_Number
+        SELECT i.I_Name, ib.Ingredient_Lot_Number, pb.Product_Lot_Number
         FROM ProductBatch pb
         JOIN ProductIngredientBatch pib ON pb.Product_Lot_Number = pib.Product_Lot_Number
         JOIN IngredientBatch ib ON pib.Ingredient_Lot_Number = ib.Ingredient_Lot_Number
@@ -103,6 +103,10 @@ def last_batch_ingredients(cursor):
     """)
 
     results = cursor.fetchall()
-    print(f"\nIngredients used in the last batch of product ID 100 by manufacturer MFG001:")
-    for name, lot in results:
-        print(f"  - {name} (Lot: {lot})")
+
+    # Extract product lot number from the first row
+    product_lot = results[0][2]
+
+    print(f"\nIngredients used in the last batch of product ID 100 (Product Lot: {product_lot}):")
+    for name, ingredient_lot, _ in results:
+        print(f"  - {name} (Ingredient Lot: {ingredient_lot})")

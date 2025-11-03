@@ -141,11 +141,14 @@ def viewer_actions(cursor):
         if choice == "0":
             break
         elif choice in map(str, range(1, len(roles["General (Viewer)"])+1)):
-            match choice:
-                case "1":
-                    v.view_product_ingredient_list(cursor)
-                case "2":
-                    v.compare_products(cursor)
+            try:
+                match choice:
+                    case "1":
+                        v.view_product_ingredient_list(cursor)
+                    case "2":
+                        v.compare_products(cursor)
+            except Exception as e:
+                print(f"\nError while executing query: {e}")
         else:
             print("Invalid choice. Try again.")
 
@@ -157,17 +160,20 @@ def view_queries(cursor):
         if choice == "0":
             break
         elif choice in map(str, range(1, len(roles["View Queries"])+1)):
-            match choice:
-                case "1":
-                    q.last_batch_ingredients(cursor)
-                case "2":
-                    q.manufacturer_supplier_spending(cursor)
-                case "3":
-                    q.product_unit_cost(cursor)
-                case "4":
-                    q.conflicting_ingredients_for_batch(cursor)
-                case "5":
-                    q.manufacturers_not_supplied_by(cursor)
+            try:
+                match choice:
+                    case "1":
+                        q.last_batch_ingredients(cursor)
+                    case "2":
+                        q.manufacturer_supplier_spending(cursor)
+                    case "3":
+                        q.product_unit_cost(cursor)
+                    case "4":
+                        q.conflicting_ingredients_for_batch(cursor)
+                    case "5":
+                        q.manufacturers_not_supplied_by(cursor)
+            except Exception as e:
+                print(f"\nError while executing query: {e}")
         else:
             print("Invalid choice. Try again.")
 

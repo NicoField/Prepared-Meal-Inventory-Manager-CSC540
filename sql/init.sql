@@ -212,7 +212,46 @@ WHERE CURRENT_DATE BETWEEN f.Eff_Start_Date AND f.Eff_End_Date
   )
 GROUP BY s.S_Name, ci.I_Name, f.Unit_Price, f.Pack_Size, f.Version_No;
 
-
+CREATE OR REPLACE VIEW FlattenedProductBOMView AS
+SELECT
+    p.P_ID,
+    p.P_Name,
+    ai.I_ID,
+    ai.I_Name,
+    SUM(
+        CASE 
+            WHEN i.I_Type = 'Compound' THEN fi.Quantity * rui.Quantity
+            ELSE rui.Quantity
+        END
+    ) AS Total_Quantity
+FROM Product p
+JOIN Recipe r ON p.P_ID = r.P_ID
+JOIN RecipeUsesIngredient rui ON r.R_ID = rui.R_ID
+JOIN Ingredient i ON rui.I_ID = i.I_ID
+LEFT JOIN Formulation f ON i.I_Type = 'Compound' AND f.CI_ID = i.I_ID
+    AND CURRENT_DATE BETWEEN f.Eff_Start_Date AND f.Eff_End_Date
+    AND f.Version_No = (
+        SELECT MAX(f2.Version_No)
+        FROM Formulation f2
+        WHERE f2.CI_ID = f.CI_ID
+    )
+LEFT JOIN FormulationIngredient fi ON f.F_ID = fi.F_ID
+LEFT JOIN Ingredient ai ON fi.AI_ID = ai.I_ID
+GROUP BY p.P_ID, p.P_Name, ai.I_ID, ai.I_Name
+HAVING ai.I_ID IS NOT NULL
+UNION ALL
+SELECT
+    p.P_ID,
+    p.P_Name,
+    i.I_ID,
+    i.I_Name,
+    SUM(rui.Quantity) AS Total_Quantity
+FROM Product p
+JOIN Recipe r ON p.P_ID = r.P_ID
+JOIN RecipeUsesIngredient rui ON r.R_ID = rui.R_ID
+JOIN Ingredient i ON rui.I_ID = i.I_ID
+WHERE i.I_Type != 'Compound'
+GROUP BY p.P_ID, p.P_Name, i.I_ID, i.I_Name;
 
 
 
