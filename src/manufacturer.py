@@ -1,4 +1,6 @@
-def define_update_product(cursor, mid):
+from collections import defaultdict
+
+def define_update_product(conn, cursor, mid):
     print("=== Define/Update Product ===")
     try:
         pid = input("Enter Product ID (leave blank to create): ").strip()
@@ -13,14 +15,15 @@ def define_update_product(cursor, mid):
             print("Product updated.")
         else:
             cursor.execute(
-                "INSERT INTO Product (P_ID, P_Name, Category_ID, Standard_Batch_Size, M_ID) VALUES (%s, %s, %s, %s, %s)",
-                (pid, pname, category_id, batch_size, mid)
+                "INSERT INTO Product (P_Name, Category_ID, Standard_Batch_Size, M_ID) VALUES (%s, %s, %s, %s)",
+                (pname, category_id, batch_size, mid)
             )
             print("Product created.")
+        conn.commit()
     except Exception as e:
         print(f"Error in define/update product: {e}")
 
-def define_update_recipe(cursor, mid):
+def define_update_recipe(conn, cursor, mid):
     print("=== Define/Update Product BOM (Recipe) ===")
     try:
         pid = input("Enter Product ID: ").strip()
@@ -51,10 +54,11 @@ def define_update_recipe(cursor, mid):
             )
             print("Ingredient added.")
         print("Recipe updated.")
+        conn.commit()
     except Exception as e:
         print(f"Error in define/update recipe: {e}")
 
-def record_ingredient_receipt(cursor, mid):
+def record_ingredient_receipt(conn, cursor, mid):
     """Record ingredient receipt - uses I_ID, S_ID, Batch_ID instead of lot number"""
     print("=== Record Ingredient Receipt ===")
     try:
@@ -80,10 +84,11 @@ def record_ingredient_receipt(cursor, mid):
             (lot_number, mid, qty, exp_date)
         )
         print("Ingredient receipt recorded successfully.")
+        conn.commit()
     except Exception as e:
         print(f"Error in recording ingredient receipt: {e}")
 
-def create_product_batch(cursor, mid):
+def create_product_batch(conn, cursor, mid):
     print("=== Create Product Batch ===")
     try:
         pid = input("Enter Product ID: ").strip()
@@ -97,11 +102,28 @@ def create_product_batch(cursor, mid):
             "VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (pid, mid, batch_id, rid, quantity, prod_date, exp_date)
         )
+        conn.commit()
         print("Product batch created.")
     except Exception as e:
-        print(f"Error in creating product batch: {e}")
+        err_msg = str(e)
+        print(f"Error in creating product batch: {err_msg}")
 
-def report_on_hand(cursor, mid):
+        if "Health Risk Detected" in err_msg:
+            # err_msg is: "Health Risk Detected: Ingredients X&Y"
+            text = err_msg.split("Health Risk Detected: ")[1]
+            text = text.replace("Ingredients","").strip()
+            text = text.replace(")", "").replace("'", "")
+
+            i1, i2 = map(int, text.split("&"))
+            product_lot_number = f"{pid}-{mid}-{batch_id}"
+            cursor.execute(
+                "INSERT INTO HealthRiskLog(Product_Lot_Number, I_ID1, I_ID2) VALUES (%s, %s, %s)",
+                (product_lot_number, i1, i2)
+            )
+            conn.commit()
+            print("Health Risk Logged.")
+
+def report_on_hand(conn, cursor, mid):
     print("=== On Hand Inventory ===")
     try:
         cursor.execute(
@@ -115,7 +137,7 @@ def report_on_hand(cursor, mid):
     except Exception as e:
         print(f"Error fetching on-hand inventory: {e}")
 
-def report_nearly_oos(cursor, mid):
+def report_nearly_oos(conn, cursor, mid):
     print("=== Nearly Out of Stock Products ===")
     try:
         cursor.execute(
@@ -135,7 +157,7 @@ def report_nearly_oos(cursor, mid):
     except Exception as e:
         print(f"Error fetching nearly out of stock products: {e}")
 
-def report_almost_expired(cursor, mid):
+def report_almost_expired(conn, cursor, mid):
     print("=== Almost Expired Inventory (<10 days) ===")
     try:
         cursor.execute(
@@ -150,7 +172,7 @@ def report_almost_expired(cursor, mid):
     except Exception as e:
         print(f"Error fetching almost expired inventory: {e}")
 
-def view_report(cursor, mid):
+def view_report(conn, cursor, mid):
     print("--- Reports ---")
     try:
         report_on_hand(cursor, mid)
@@ -159,7 +181,7 @@ def view_report(cursor, mid):
     except Exception as e:
         print(f"Error in generating reports: {e}")
 
-def recall_traceability(cursor, mid):
+def recall_traceability(conn, cursor, mid):
     print("=== Recall/Traceability ===")
     try:
         lot_number = input("Enter Product_Lot_Number: ").strip()
@@ -185,3 +207,54 @@ def recall_traceability(cursor, mid):
                 print(row)
     except Exception as e:
         print(f"Error in recall/traceability: {e}")
+
+def view_health_violations(conn, cursor, mid):
+    print("=== Recent Health Risk Violations (Last 30 Days) ===")
+
+    cursor.execute("SELECT Product_Lot_Number, I_ID1, I_ID2, Violation_Date FROM RecentHealthRiskViolationsView")
+    rows = cursor.fetchall()
+
+    if not rows:
+        print("No recent violations.")
+        return
+
+    # nice formatted print
+    print("{:<25} {:<10} {:<10} {:<20}".format("Product Lot", "Ing1", "Ing2", "Violation Date"))
+    print("-" * 70)
+
+    for row in rows:
+        print("{:<25} {:<10} {:<10} {:<20}".format(row[0], row[1], row[2], str(row[3])))
+
+def view_product_boms(conn, cursor, mid):
+    print("\n=== Flattened Product BOM ===")
+    print(f"Manufacturer ID: {mid}\n")
+
+    cursor.execute("""
+        SELECT P_ID, P_Name, I_Name, Total_Quantity
+        FROM ProductBOMView
+        WHERE P_ID IN (SELECT P_ID FROM Product WHERE M_ID = %s)
+        ORDER BY P_ID, I_Name;
+    """, (mid,))
+    
+    boms = defaultdict(list)
+    for pid, pname, iname, qty in cursor.fetchall():
+        boms[(pid, pname)].append(f"{iname} ({qty:.4f})")
+
+    # Prepare rows
+    rows = []
+    for (pid, pname), ingredients in boms.items():
+        ingredients_str = ', '.join(ingredients)
+        rows.append([str(pid), pname, ingredients_str])
+
+    # Calculate column widths
+    col_widths = [max(len(row[i]) for row in rows + [["Product ID", "Product Name", "Ingredients"]]) for i in range(3)]
+
+    # Print header
+    header = ["Product ID", "Product Name", "Ingredients"]
+    print(" | ".join(header[i].ljust(col_widths[i]) for i in range(3)))
+    print("-+-".join('-' * col_widths[i] for i in range(3)))
+
+    # Print rows
+    for row in rows:
+        print(" | ".join(row[i].ljust(col_widths[i]) for i in range(3)))
+

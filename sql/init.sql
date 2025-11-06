@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS ProductIngredientBatch;
+DROP TABLE IF EXISTS SupplierSuppliesIngredient;
 DROP TABLE IF EXISTS ProductBatch;
 DROP TABLE IF EXISTS IngredientBatch;
 DROP TABLE IF EXISTS RecipeUsesIngredient;
@@ -29,7 +30,7 @@ CREATE TABLE Category (
 );
 
 CREATE TABLE Product (
-    P_ID INT PRIMARY KEY,
+    P_ID INT PRIMARY KEY AUTO_INCREMENT,
     P_Name VARCHAR(255) NOT NULL,
     Category_ID INT NOT NULL,
     Standard_Batch_Size INT NOT NULL CHECK (Standard_Batch_Size > 0),
@@ -39,14 +40,14 @@ CREATE TABLE Product (
 );
 
 CREATE TABLE Recipe (
-    R_ID INT PRIMARY KEY,
+    R_ID INT PRIMARY KEY AUTO_INCREMENT,
     P_ID INT NOT NULL,
     Creation_Date DATE NOT NULL,
     FOREIGN KEY (P_ID) REFERENCES Product(P_ID)
 );
 
 CREATE TABLE Ingredient (
-    I_ID INT PRIMARY KEY,
+    I_ID INT PRIMARY KEY AUTO_INCREMENT,
     I_Name VARCHAR(255) NOT NULL,
     I_Type VARCHAR(50) CHECK (I_Type IN ('Atomic', 'Compound'))
 );
@@ -73,6 +74,14 @@ CREATE TABLE RecipeUsesIngredient (
 CREATE TABLE Supplier (
     S_ID VARCHAR(10) PRIMARY KEY,
     S_Name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE SupplierSuppliesIngredient (
+    S_ID VARCHAR(10) NOT NULL,
+    I_ID INT NOT NULL,
+    PRIMARY KEY (S_ID, I_ID),
+    FOREIGN KEY (S_ID) REFERENCES Supplier(S_ID),
+    FOREIGN KEY (I_ID) REFERENCES Ingredient(I_ID)
 );
 
 CREATE TABLE Viewer (
@@ -158,10 +167,11 @@ CREATE TABLE ProductIngredientBatch (
 );
 
 CREATE TABLE Inventory (
-    Ingredient_Lot_Number VARCHAR(50) PRIMARY KEY,
+    Ingredient_Lot_Number VARCHAR(50) NOT NULL,
     M_ID VARCHAR(10) NOT NULL,
     Quantity INT NOT NULL,
     Expiration_Date DATE,
+    PRIMARY KEY (Ingredient_Lot_Number, M_ID),
     FOREIGN KEY (M_ID) REFERENCES Manufacturer(M_ID)
 );
 
@@ -202,8 +212,8 @@ SELECT
 FROM Formulation f
 JOIN Supplier s ON f.S_ID = s.S_ID
 JOIN Ingredient ci ON f.CI_ID = ci.I_ID
-JOIN FormulationIngredient fi ON f.F_ID = fi.F_ID
-JOIN Ingredient ai ON fi.AI_ID = ai.I_ID
+LEFT JOIN FormulationIngredient fi ON f.F_ID = fi.F_ID
+LEFT JOIN Ingredient ai ON fi.AI_ID = ai.I_ID
 WHERE CURRENT_DATE BETWEEN f.Eff_Start_Date AND f.Eff_End_Date
   AND f.Version_No = (
       SELECT MAX(f2.Version_No)
@@ -212,7 +222,7 @@ WHERE CURRENT_DATE BETWEEN f.Eff_Start_Date AND f.Eff_End_Date
   )
 GROUP BY s.S_Name, ci.I_Name, f.Unit_Price, f.Pack_Size, f.Version_No;
 
-CREATE OR REPLACE VIEW FlattenedProductBOMView AS
+CREATE OR REPLACE VIEW ProductBOMView AS
 SELECT
     p.P_ID,
     p.P_Name,
@@ -252,6 +262,7 @@ JOIN RecipeUsesIngredient rui ON r.R_ID = rui.R_ID
 JOIN Ingredient i ON rui.I_ID = i.I_ID
 WHERE i.I_Type != 'Compound'
 GROUP BY p.P_ID, p.P_Name, i.I_ID, i.I_Name;
+
 
 
 
@@ -438,7 +449,7 @@ BEGIN
             WHERE (CAST(d.I_ID1 AS SIGNED) = I1 AND CAST(d.I_ID2 AS SIGNED) = I2)
                OR (CAST(d.I_ID1 AS SIGNED) = I2 AND CAST(d.I_ID2 AS SIGNED) = I1)
         ) THEN
-            SET msg = CONCAT('Health Risk Detected: Ingredients ', CAST(I1 AS CHAR), ' & ', CAST(I2 AS CHAR));
+            SET msg = CONCAT('Health Risk Detected: Ingredients ', I1, '&', I2);
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = msg;
         END IF;
 

@@ -28,11 +28,14 @@ roles = {
         "Define/Update Product BOM",
         "Record Ingredient Receipt",
         "Create Product Batch",
+        "View Health Risk Violations",
+        "View Product BOMs",
         "Reports: On-hand | Nearly-out-of-stock | Almost-expired",
         "(Grad) Recall/Traceability"
     ],
     "Supplier": [
         "Declare Ingredients Supplied",
+        "View Active Formulations",
         "Maintain Formulations (materials, price, pack, effective dates)",
         "Create Ingredient Batch (for supplied ingredients)"
     ],
@@ -54,7 +57,7 @@ def show_menu(options):
         print(f"[{idx}] {option}")
     print("[0] Back/Exit")
 
-def manufacturer_actions(cursor, connection):
+def manufacturer_actions(conn, cursor):
     mid = input("Enter user id: ").strip()
 
     cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (mid,))
@@ -76,22 +79,25 @@ def manufacturer_actions(cursor, connection):
         elif choice in map(str, range(1, len(roles["Manufacturer"])+1)):
             match choice:
                 case "1":
-                    m.define_update_product(cursor, mid)
+                    m.define_update_product(conn, cursor, mid)
                 case "2":
-                    m.define_update_recipe(cursor, mid)
+                    m.define_update_recipe(conn, cursor, mid)
                 case "3":
-                    m.record_ingredient_receipt(cursor, mid)
+                    m.record_ingredient_receipt(conn, cursor, mid)
                 case "4":
-                    m.create_product_batch(cursor, mid)
-                    connection.commit()
+                    m.create_product_batch(conn, cursor, mid)
                 case "5":
-                    m.view_report(cursor, mid)
+                    m.view_health_violations(conn, cursor, mid)
                 case "6":
-                    m.recall_traceability(cursor, mid)
+                    m.view_product_boms(conn, cursor, mid)
+                case "7":
+                    m.view_report(conn, cursor, mid)
+                case "8":
+                    m.recall_traceability(conn, cursor, mid)
         else:
             print("Invalid choice. Try again.")
 
-def supplier_actions(cursor):
+def supplier_actions(conn, cursor):
     sid = input("Enter user id: ").strip()
 
     cursor.execute("SELECT S_Name FROM Supplier WHERE S_ID = %s", (sid,))
@@ -113,23 +119,37 @@ def supplier_actions(cursor):
         elif choice in map(str, range(1, len(roles["Supplier"])+1)):
             match choice:
                 case "1":
-                    s.declare_ingredient_supplied(cursor, sid)
+                    s.declare_ingredient_supplied(conn, cursor, sid)
                 case "2":
-                    s.maintain_formulations(cursor, sid)
+                    s.view_active_formulations(conn, cursor, sid)
                 case "3":
-                    s.create_ingredient_batch(cursor, sid)
+                    s.maintain_formulations(conn, cursor, sid)
+                case "4":
+                    s.create_ingredient_batch(conn, cursor, sid)
         else:
             print("Invalid choice. Try again.")
 
 def viewer_actions(cursor):
     vid = input("Enter user id: ").strip()
 
+    cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (vid,))
+
+    result1 = cursor.fetchone()
+
+    cursor.execute("SELECT S_Name FROM Supplier WHERE S_ID = %s", (vid,))
+
+    result2 = cursor.fetchone()
+
     cursor.execute("SELECT V_Name FROM Viewer WHERE V_ID = %s", (vid,))
 
-    result = cursor.fetchone()
+    result3 = cursor.fetchone()
 
-    if result:
-        print(f"Welcome {result[0]}")
+    if result1:
+        print(f"Welcome {result1[0]}")
+    elif result2:
+        print(f"Welcome {result2[0]}")
+    elif result3:
+        print(f"Welcome {result3[0]}")
     else:
         print("Invalid user")
         return
@@ -248,16 +268,15 @@ def main():
                 connection.close()
                 sys.exit()
             elif role_choice == "1":
-                manufacturer_actions(cursor, connection)
+                manufacturer_actions(connection, cursor)
             elif role_choice == "2":
-                supplier_actions(cursor)
+                supplier_actions(connection, cursor)
             elif role_choice == "3":
                 viewer_actions(cursor)
             elif role_choice == "4":
                 view_queries(cursor)
             else:
                 print("Invalid choice. Try again.")
-            connection.close()
 
 if __name__ == "__main__":
     main()

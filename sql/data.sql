@@ -40,7 +40,7 @@ VALUES
 
 INSERT INTO Formulation (F_ID, CI_ID, S_ID, Version_No, Eff_Start_Date, Eff_End_Date, Unit_Price, Pack_Size)
 VALUES
-(1, 201, 20, 1, "2025-01-01", "2025-06-30", 20.0, 8.0);
+(1, 201, 20, 1, "2025-01-01", "2025-11-30", 20.0, 8.0);
 
 INSERT INTO FormulationIngredient (F_ID, AI_ID, Quantity)
 VALUES
@@ -59,6 +59,23 @@ VALUES
 (1001, 108, 7.0),
 (1001, 101, 0.5),
 (1001, 102, 2.0);
+
+INSERT INTO SupplierSuppliesIngredient (S_ID, I_ID)
+VALUES
+("20", 101),
+("20", 102),
+("20", 104),
+("20", 106),
+("20", 108),
+("20", 201),
+("20", 301),
+("21", 101),
+("21", 102),
+("21", 104),
+("21", 106),
+("21", 108),
+("21", 201),
+("21", 301);
 
 INSERT INTO IngredientBatch (I_ID, S_ID, Batch_ID, Quantity, Cost, Expiration_Date)
 VALUES

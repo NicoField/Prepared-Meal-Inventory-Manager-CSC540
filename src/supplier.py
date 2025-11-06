@@ -1,4 +1,4 @@
-def declare_ingredient_supplied(cursor, sid):
+def declare_ingredient_supplied(conn, cursor, sid):
     print("=== Declare Ingredient Supplied ===")
     try:
         iid = input("Enter Ingredient ID: ").strip()
@@ -11,10 +11,11 @@ def declare_ingredient_supplied(cursor, sid):
             (iid, name, itype, name, itype)
         )
         print("Ingredient declared/updated.")
+        conn.commit()
     except Exception as e:
         print(f"Error in declaring ingredient: {e}")
 
-def maintain_formulations(cursor, sid):
+def maintain_formulations(conn, cursor, sid):
     """Maintain formulations - uses CI_ID for compound ingredients"""
     print("=== Maintain Formulations ===")
     try:
@@ -59,10 +60,11 @@ def maintain_formulations(cursor, sid):
                 print(f"    Error linking atomic ingredient: {inner_e}")
         
         print("Formulation processing complete.")
+        conn.commit()
     except Exception as e:
         print(f"Error in maintaining formulation: {e}")
 
-def create_ingredient_batch(cursor, sid):
+def create_ingredient_batch(conn, cursor, sid):
     """Create ingredient batch - lot number is auto-generated"""
     print("=== Create Ingredient Batch ===")
     try:
@@ -77,5 +79,40 @@ def create_ingredient_batch(cursor, sid):
             (iid, sid, bid, qty, cost, expdate)
         )
         print(f"Ingredient batch created. Lot Number: {iid}-{sid}-{bid}")
+        conn.commit()
     except Exception as e:
         print(f"Error in creating ingredient batch: {e}")
+
+def view_active_formulations(conn, cursor, sid):
+    print("\n=== Current Active Formulations ===")
+    print(f"Supplier ID: {sid}\n")
+    query = """
+        SELECT Supplier_Name, Compound_Ingredient_Name, Ingredients, Unit_Price, Pack_Size, Version
+        FROM ActiveSupplierFormulationsView
+        WHERE Supplier_Name IN (
+            SELECT S_Name FROM Supplier WHERE S_ID = %s
+        )
+        ORDER BY Compound_Ingredient_Name;
+    """
+    cursor.execute(query, (sid,))
+    
+    rows = cursor.fetchall()
+    if not rows:
+        print(f"No active formulations found for supplier ID {sid}.")
+        return
+    
+    # Calculate max widths for neat printing
+    headers = ["Supplier Name", "Compound Ingredient", "Ingredients", "Unit Price", "Pack Size", "Version"]
+    col_widths = [len(h) for h in headers]
+    
+    for row in rows:
+        for i, val in enumerate(row):
+            col_widths[i] = max(col_widths[i], len(str(val)))
+    
+    # Print header
+    print(" | ".join(headers[i].ljust(col_widths[i]) for i in range(len(headers))))
+    print("-+-".join("-" * w for w in col_widths))
+    
+    # Print rows
+    for row in rows:
+        print(" | ".join(str(val).ljust(col_widths[i]) for i, val in enumerate(row)))
