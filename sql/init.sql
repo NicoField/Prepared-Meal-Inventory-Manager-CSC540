@@ -48,7 +48,7 @@ CREATE TABLE Recipe (
 
 CREATE TABLE Ingredient (
     I_ID INT PRIMARY KEY AUTO_INCREMENT,
-    I_Name VARCHAR(255) NOT NULL,
+    I_Name VARCHAR(255) UNIQUE NOT NULL,
     I_Type VARCHAR(50) CHECK (I_Type IN ('Atomic', 'Compound'))
 );
 

@@ -175,9 +175,9 @@ def report_almost_expired(conn, cursor, mid):
 def view_report(conn, cursor, mid):
     print("--- Reports ---")
     try:
-        report_on_hand(cursor, mid)
-        report_nearly_oos(cursor, mid)
-        report_almost_expired(cursor, mid)
+        report_on_hand(conn, cursor, mid)
+        report_nearly_oos(conn, cursor, mid)
+        report_almost_expired(conn, cursor, mid)
     except Exception as e:
         print(f"Error in generating reports: {e}")
 
