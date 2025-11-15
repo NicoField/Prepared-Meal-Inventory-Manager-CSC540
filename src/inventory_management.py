@@ -11,9 +11,11 @@ import queries as q
 
 from pathlib import Path
 from sshtunnel import SSHTunnelForwarder
+from datetime import date
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 config_path = os.path.join(base_dir, "config", "config.json")
+
 with open(config_path, "r") as f:
     config = json.load(f)
 
@@ -28,14 +30,11 @@ roles = {
         "Define/Update Product BOM",
         "Record Ingredient Receipt",
         "Create Product Batch",
-        "View Health Risk Violations",
-        "View Product BOMs",
         "Reports: On-hand | Nearly-out-of-stock | Almost-expired",
         "(Grad) Recall/Traceability"
     ],
     "Supplier": [
         "Declare Ingredients Supplied",
-        "View Active Formulations",
         "Maintain Formulations (materials, price, pack, effective dates)",
         "Create Ingredient Batch (for supplied ingredients)"
     ],
@@ -59,24 +58,21 @@ def show_menu(options):
 
 def manufacturer_actions(conn, cursor):
     mid = input("Enter user id: ").strip()
-
     cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (mid,))
-
     result = cursor.fetchone()
-
     if result:
         print(f"Welcome {result[0]}")
     else:
         print("Invalid user")
         return
-    
+
     while True:
         print("\n[Manufacturer Actions]")
         show_menu(roles["Manufacturer"])
         choice = input("Select an action: ").strip()
         if choice == "0":
             break
-        elif choice in map(str, range(1, len(roles["Manufacturer"])+1)):
+        elif choice in map(str, range(1, len(roles["Manufacturer"]) + 1)):
             match choice:
                 case "1":
                     m.define_update_product(conn, cursor, mid)
@@ -87,80 +83,62 @@ def manufacturer_actions(conn, cursor):
                 case "4":
                     m.create_product_batch(conn, cursor, mid)
                 case "5":
-                    m.view_health_violations(conn, cursor, mid)
+                    m.view_report(cursor, mid)
                 case "6":
-                    m.view_product_boms(conn, cursor, mid)
-                case "7":
-                    m.view_report(conn, cursor, mid)
-                case "8":
-                    m.recall_traceability(conn, cursor, mid)
+                    m.recall_traceability(cursor, mid)
+                case _:
+                    print("Invalid choice. Try again.")
+            conn.commit()
         else:
             print("Invalid choice. Try again.")
 
 def supplier_actions(conn, cursor):
     sid = input("Enter user id: ").strip()
-
     cursor.execute("SELECT S_Name FROM Supplier WHERE S_ID = %s", (sid,))
-
     result = cursor.fetchone()
-
     if result:
         print(f"Welcome {result[0]}")
     else:
         print("Invalid user")
         return
-    
+
     while True:
         print("\n[Supplier Actions]")
         show_menu(roles["Supplier"])
         choice = input("Select an action: ").strip()
         if choice == "0":
             break
-        elif choice in map(str, range(1, len(roles["Supplier"])+1)):
+        elif choice in map(str, range(1, len(roles["Supplier"]) + 1)):
             match choice:
                 case "1":
                     s.declare_ingredient_supplied(conn, cursor, sid)
                 case "2":
-                    s.view_active_formulations(conn, cursor, sid)
-                case "3":
                     s.maintain_formulations(conn, cursor, sid)
-                case "4":
+                case "3":
                     s.create_ingredient_batch(conn, cursor, sid)
+                case _:
+                    print("Invalid choice. Try again.")
+            conn.commit()
         else:
             print("Invalid choice. Try again.")
 
 def viewer_actions(cursor):
     vid = input("Enter user id: ").strip()
-
-    cursor.execute("SELECT M_Name FROM Manufacturer WHERE M_ID = %s", (vid,))
-
-    result1 = cursor.fetchone()
-
-    cursor.execute("SELECT S_Name FROM Supplier WHERE S_ID = %s", (vid,))
-
-    result2 = cursor.fetchone()
-
     cursor.execute("SELECT V_Name FROM Viewer WHERE V_ID = %s", (vid,))
-
-    result3 = cursor.fetchone()
-
-    if result1:
-        print(f"Welcome {result1[0]}")
-    elif result2:
-        print(f"Welcome {result2[0]}")
-    elif result3:
-        print(f"Welcome {result3[0]}")
+    result = cursor.fetchone()
+    if result:
+        print(f"Welcome {result[0]}")
     else:
         print("Invalid user")
         return
-    
+
     while True:
         print("\n[Viewer Actions]")
         show_menu(roles["General (Viewer)"])
         choice = input("Select an action: ").strip()
         if choice == "0":
             break
-        elif choice in map(str, range(1, len(roles["General (Viewer)"])+1)):
+        elif choice in map(str, range(1, len(roles["General (Viewer)"]) + 1)):
             try:
                 match choice:
                     case "1":
@@ -179,7 +157,7 @@ def view_queries(cursor):
         choice = input("Select an action: ").strip()
         if choice == "0":
             break
-        elif choice in map(str, range(1, len(roles["View Queries"])+1)):
+        elif choice in map(str, range(1, len(roles["View Queries"]) + 1)):
             try:
                 match choice:
                     case "1":
@@ -212,16 +190,12 @@ def main():
             database=config["ssh_user"],
             autocommit=True
         )
-        
         cursor = connection.cursor()
+
         print(f"Executing init.sql...")
         with open(init_file, "r") as f:
             sql_script = f.read()
-
-        # Split on "CREATE" or "DROP" to isolate each statement
         parts = re.split(r'\b(CREATE|DROP)\b', sql_script, flags=re.IGNORECASE)
-
-        # Combine keyword + statement
         stmts = []
         i = 1
         while i < len(parts):
@@ -230,12 +204,10 @@ def main():
             if statement:
                 stmts.append(f"{keyword} {statement}")
             i += 2
-
         for part in stmts:
             part = part.strip()
             if not part:
                 continue
-
             try:
                 cursor.execute(part)
             except pymysql.MySQLError as e:
@@ -243,24 +215,19 @@ def main():
                 print(part)
                 print(e)
                 break
-
         print("✅ init.sql executed successfully.")
 
         print(f"Executing data.sql...")
-
         with open(data_file, "r") as f:
             sql_script = f.read()
-
-        # Split by semicolon for multiple statements
         for statement in sql_script.split(";"):
             stmt = statement.strip()
             if stmt:
                 cursor.execute(stmt + ";")
-
         print("✅ data.sql executed successfully.")
 
         while True:
-            print("\nSelect role: [1] Manufacturer  [2] Supplier  [3] General (Viewer) [4] View Queries  [0] Exit")
+            print("\nSelect role: [1] Manufacturer [2] Supplier [3] General (Viewer) [4] View Queries [0] Exit")
             role_choice = input("Enter choice: ").strip()
             if role_choice == "0":
                 print("Exiting...")
@@ -280,5 +247,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
