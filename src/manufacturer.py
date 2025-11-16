@@ -184,6 +184,8 @@ def create_product_batch(conn, cursor, mid):
             return
         rid = row[0]
 
+        bid = input("Enter Batch ID: ").strip()
+
         mul = int(input(f"Enter number of batches to produce (Standard batch size: {std_batch_size}): "))
         quantity = mul * std_batch_size
 
@@ -191,8 +193,8 @@ def create_product_batch(conn, cursor, mid):
         exp_date = input("Enter Expiration Date for batch (YYYY-MM-DD): ").strip()
         #insert ProductBatch
         cursor.execute(
-            "INSERT INTO ProductBatch (P_ID, M_ID, R_ID, Quantity, Production_Date, Expiration_Date) VALUES (%s, %s, %s, %s, %s, %s)",
-            (pid, mid, rid, quantity, prod_date, exp_date)
+            "INSERT INTO ProductBatch (P_ID, M_ID, Batch_ID, R_ID, Quantity, Production_Date, Expiration_Date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (pid, mid, bid, rid, quantity, prod_date, exp_date)
         )
         cursor.execute("SELECT LAST_INSERT_ID()")
         batch_id = cursor.fetchone()[0]
@@ -251,8 +253,8 @@ def report_nearly_oos(cursor, mid):
     print("=== Nearly Out Of Stock Products ===")
     try:
         cursor.execute("""
-            SELECT p.P_ID, p.P_Name, IFNULL(SUM(i.Quantity),0) as OnHand, p.Standard_Batch_Size
-            FROM Product p LEFT JOIN Inventory i ON p.P_ID = i.I_ID
+            SELECT p.P_ID, p.P_Name, IFNULL(SUM(pb.Quantity),0) as OnHand, p.Standard_Batch_Size
+            FROM Product p LEFT JOIN ProductBatch pb ON p.P_ID = pb.P_ID
             WHERE p.M_ID=%s
             GROUP BY p.P_ID, p.P_Name, p.Standard_Batch_Size
             HAVING OnHand < p.Standard_Batch_Size

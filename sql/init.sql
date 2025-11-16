@@ -35,6 +35,7 @@ CREATE TABLE Product (
     Category_ID INT NOT NULL,
     Standard_Batch_Size INT NOT NULL CHECK (Standard_Batch_Size > 0),
     M_ID VARCHAR(10) NOT NULL,
+    UNIQUE (P_Name, Category_ID),
     FOREIGN KEY (M_ID) REFERENCES Manufacturer(M_ID),
     FOREIGN KEY (Category_ID) REFERENCES Category(Category_ID)
 );
@@ -134,6 +135,7 @@ CREATE TABLE ProductBatch (
         (CONCAT(CAST(P_ID AS CHAR), '-', CAST(M_ID AS CHAR), '-', CAST(Batch_ID AS CHAR))) STORED,
     PRIMARY KEY (P_ID, M_ID, Batch_ID),
     UNIQUE (Product_Lot_Number),
+    UNIQUE (Batch_ID, P_ID),
 
     FOREIGN KEY (P_ID) REFERENCES Product(P_ID),
     FOREIGN KEY (M_ID) REFERENCES Manufacturer(M_ID),
